@@ -24,7 +24,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 load_plugin_textdomain( 'unax', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
 
 // Hooks.
+add_filter( 'woocommerce_product_object_query_args', array( '\Unax_Addons\Future_Products', 'product_object_query_args' ) );
 add_action( 'pre_get_posts', array( '\Unax_Addons\Future_Products', 'show_future_products' ) );
+add_filter( 'the_permalink', array( '\Unax_Addons\Future_Products', 'fix_permalink' ), 10, 2 );
 add_filter( 'woocommerce_product_is_visible', array( '\Unax_Addons\Future_Products', 'product_is_visible' ), 10, 2 );
 add_filter( 'woocommerce_is_purchasable', array( '\Unax_Addons\Future_Products', 'is_purchasable' ), 10, 2 );
 
@@ -44,35 +46,69 @@ class Future_Products {
 	/**
 	 * Show future products.
 	 *
+	 * @param array $query object.
+	 */
+	public static function product_object_query_args( $query_vars ) {
+		array_push( $query_vars['status'], 'future' );
+
+		return $query_vars;
+	}
+
+
+	/**
+	 * Show future products.
+	 *
 	 * @param WP_Query $query object.
 	 */
 	public static function show_future_products( $query ) {
-		// Check if the query is for products.
-		if ( ! in_array( $query->get( 'post_type' ), self::$post_types, true )
-			 && ! is_product_category()
-			 && ! is_post_type_archive( self::$post_types ) ) {
+		if ( empty( $query->get( 'post_status' ) ) ) {
 			return;
-	    }
-
-		// Get query post statuses.
-		$post_status   = $query->get( 'post_status' );
-		$post_statuses = array();
-
-		// Prepare post statuses array.
-		if ( is_array( $post_status ) ) {
-			$post_statuses = $post_status;
-		} else {
-			array_push( $post_statuses, $post_status );
 		}
 
-		// Add future to post statuses.
-		array_push( $post_statuses, 'future' );
+		// Check if the query is for products.
+		if ( ! in_array( $query->get( 'post_type' ), self::$post_types, true )
+			&& ! is_product_category()
+			&& ! is_post_type_archive( self::$post_types ) ) {
+			return;
+		}
 
-		// Set future post status
-		$query->set( 'post_status', $post_statuses );
-
-	    return $query;
+		// Set post status.
+		if ( 'future' === $query->get( 'post_status' ) ) {
+			$query->set( 'post_status', 'publish' );
+		}
 	}
+
+
+	/**
+	 * Fix future product permalink.
+     *
+     * @param string $permalink Permalink.
+     * @param int    $post      WP_Post
+     * @param bool   $leavename WP_Post
+     *
+     * @return string
+	 */
+    function fix_permalink( $permalink, $post, $leavename ) {
+        /* For filter recursion (infinite loop) */
+        static $recursing = false;
+
+        if ( empty( $post->ID ) ) {
+            return $permalink;
+        }
+
+        if ( ! $recursing ) {
+            if ( isset( $post->post_status ) && ( 'future' === $post->post_status ) ) {
+                // Set the post status to publish to get the 'publish' permalink.
+                $post->post_status = 'publish';
+                $recursing = true;
+                return get_permalink( $post, $leavename ) ;
+            }
+        }
+
+        $recursing = false;
+
+        return $permalink;
+    }
 
 
 	/**
@@ -82,8 +118,7 @@ class Future_Products {
 	 * @param int  $product_id WC Product id.
 	 */
 	public static function product_is_visible( $visible, $product_id ) {
-	    global $product;
-
+	    $product = wc_get_product( $product_id );
 	    if ( empty( $product ) ) {
 	        return $visible;
 	    }
