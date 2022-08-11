@@ -26,9 +26,11 @@ load_plugin_textdomain( 'unax', false, dirname( plugin_basename( __FILE__ ) ) . 
 // Hooks.
 add_filter( 'woocommerce_product_object_query_args', array( '\Unax_Addons\Future_Products', 'product_object_query_args' ) );
 add_action( 'pre_get_posts', array( '\Unax_Addons\Future_Products', 'show_future_products' ) );
-add_filter( 'the_permalink', array( '\Unax_Addons\Future_Products', 'fix_permalink' ), 10, 2 );
-add_filter( 'woocommerce_product_is_visible', array( '\Unax_Addons\Future_Products', 'product_is_visible' ), 10, 2 );
+add_filter( 'the_permalink', array( '\Unax_Addons\Future_Products', 'fix_permalink' ), 10, 3 );
 add_filter( 'woocommerce_is_purchasable', array( '\Unax_Addons\Future_Products', 'is_purchasable' ), 10, 2 );
+add_filter( 'woocommerce_product_is_visible', array( '\Unax_Addons\Future_Products', 'product_is_visible' ), 10, 2 );
+add_filter( 'woocommerce_variation_is_purchasable', array( '\Unax_Addons\Future_Products', 'is_purchasable' ), 10, 2 );
+add_filter( 'woocommerce_variation_is_visible', array( '\Unax_Addons\Future_Products', 'variation_is_visible' ), 10, 4 );
 
 /*
  * Class Future_Products
@@ -83,12 +85,12 @@ class Future_Products {
 	 * Fix future product permalink.
      *
      * @param string $permalink Permalink.
-     * @param int    $post      WP_Post
-     * @param bool   $leavename WP_Post
+     * @param int    $post      WP_Post.
+     * @param bool   $leavename Leave name.
      *
      * @return string
 	 */
-    function fix_permalink( $permalink, $post, $leavename ) {
+    public static function fix_permalink( $permalink, $post, $leavename ) {
         /* For filter recursion (infinite loop) */
         static $recursing = false;
 
@@ -114,7 +116,22 @@ class Future_Products {
 	/**
 	 * Show future products.
 	 *
-	 * @param bool $visible Product is visible.
+	 * @param bool $purchasable Product is purchasable.
+	 * @param int  $product     WC Product.
+	 */
+	public static function is_purchasable( $purchasable, $product ) {
+	    if ( $product->exists() && ( 'future' === $product->get_status() || current_user_can( 'edit_post', $product->get_id() ) ) && '' !== $product->get_price() ) {
+	        $purchasable = true;
+	    }
+
+	    return $purchasable;
+	}
+
+
+	/**
+	 * Show future products.
+	 *
+	 * @param bool $visible    Product is visible.
 	 * @param int  $product_id WC Product id.
 	 */
 	public static function product_is_visible( $visible, $product_id ) {
@@ -123,9 +140,25 @@ class Future_Products {
 	        return $visible;
 	    }
 
-	    if ( 'future' === $product->get_status() ) {
+		if ( 'visible' !== $product->get_catalog_visibility() ) {
+			return $visible;
+		}
+
+		if ( 'future' === $product->get_status() ) {
 	        $visible = true;
 	    }
+
+		if ( $product->get_parent_id() ) {
+			$parent_product = wc_get_product( $product->get_parent_id() );
+
+			if ( $parent_product && 'future' === $parent_product->get_status() ) {
+				$visible = true;
+			}
+		}
+
+		if ( 'yes' === get_option( 'woocommerce_hide_out_of_stock_items' ) && ! $product->is_in_stock() ) {
+			$visible = false;
+		}
 
 	    return $visible;
 	}
@@ -137,13 +170,28 @@ class Future_Products {
 	 * @param bool $purchasable Product is purchasable.
 	 * @param int  $product     WC Product.
 	 */
-	public static function is_purchasable( $purchasable, $product ) {
-	    if ( $product->exists()
-			 && ( 'future' === $product->get_status() || current_user_can( 'edit_post', $product->get_id() ) )
-			 && '' !== $product->get_price() ) {
+	public static function variation_is_purchasable( $purchasable, $variation ) {
+	    if ( $variation->variation_is_visible() && parent::is_purchasable() && ( 'future' === $variation->parent_data['status'] || current_user_can( 'edit_post', $variation->get_parent_id() ) ) ) {
 	        $purchasable = true;
 	    }
 
 	    return $purchasable;
+	}
+
+
+	/**
+	 * Show future products.
+	 *
+	 * @param bool 					$visible      Variation is visible.
+	 * @param int  					$variation_id Product variation id.
+	 * @param int  					$parent_id    Product id.
+	 * @param WC_Product_Variation  $variation    Product variation.
+	 */
+	public static function variation_is_visible( $visible, $variation_id, $parent_id, $variation ) {
+	    if ( 'future' === get_post_status( $variation_id ) && '' !== $variation->get_price() ) {
+	        $visible = true;
+	    }
+
+	    return $visible;
 	}
 }
