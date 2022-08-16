@@ -26,7 +26,7 @@ load_plugin_textdomain( 'unax', false, dirname( plugin_basename( __FILE__ ) ) . 
 // Hooks.
 add_filter( 'woocommerce_product_object_query_args', array( '\Unax_Addons\Future_Products', 'product_object_query_args' ) );
 add_action( 'pre_get_posts', array( '\Unax_Addons\Future_Products', 'show_future_products' ) );
-add_filter( 'the_permalink', array( '\Unax_Addons\Future_Products', 'fix_permalink' ), 10, 3 );
+add_filter( 'the_permalink', array( '\Unax_Addons\Future_Products', 'fix_permalink' ), 10, 2 );
 add_filter( 'woocommerce_is_purchasable', array( '\Unax_Addons\Future_Products', 'is_purchasable' ), 10, 2 );
 add_filter( 'woocommerce_product_is_visible', array( '\Unax_Addons\Future_Products', 'product_is_visible' ), 10, 2 );
 add_filter( 'woocommerce_variation_is_purchasable', array( '\Unax_Addons\Future_Products', 'is_purchasable' ), 10, 2 );
@@ -86,11 +86,10 @@ class Future_Products {
      *
      * @param string $permalink Permalink.
      * @param int    $post      WP_Post.
-     * @param bool   $leavename Leave name.
      *
      * @return string
 	 */
-    public static function fix_permalink( $permalink, $post, $leavename ) {
+    public static function fix_permalink( $permalink, $post ) {
         /* For filter recursion (infinite loop) */
         static $recursing = false;
 
@@ -103,7 +102,7 @@ class Future_Products {
                 // Set the post status to publish to get the 'publish' permalink.
                 $post->post_status = 'publish';
                 $recursing = true;
-                return get_permalink( $post, $leavename ) ;
+                return get_permalink( $post ) ;
             }
         }
 
