@@ -170,7 +170,7 @@ class Future_Products {
 	 * @param int  $product     WC Product.
 	 */
 	public static function variation_is_purchasable( $purchasable, $variation ) {
-	    if ( $variation->variation_is_visible() && parent::is_purchasable() && ( 'future' === $variation->parent_data['status'] || current_user_can( 'edit_post', $variation->get_parent_id() ) ) ) {
+	    if ( $variation->variation_is_visible() && ( 'future' === $variation->parent_data['status'] || current_user_can( 'edit_post', $variation->get_parent_id() ) ) ) {
 	        $purchasable = true;
 	    }
 
