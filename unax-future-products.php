@@ -24,13 +24,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 load_plugin_textdomain( 'unax', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
 
 // Hooks.
-add_filter( 'woocommerce_product_object_query_args', array( '\Unax_Addons\Future_Products', 'product_object_query_args' ) );
+// add_filter( 'woocommerce_product_object_query_args', array( '\Unax_Addons\Future_Products', 'product_object_query_args' ) );
 add_action( 'pre_get_posts', array( '\Unax_Addons\Future_Products', 'show_future_products' ) );
-add_filter( 'the_permalink', array( '\Unax_Addons\Future_Products', 'fix_permalink' ), 10, 2 );
-add_filter( 'woocommerce_is_purchasable', array( '\Unax_Addons\Future_Products', 'is_purchasable' ), 10, 2 );
-add_filter( 'woocommerce_product_is_visible', array( '\Unax_Addons\Future_Products', 'product_is_visible' ), 10, 2 );
-add_filter( 'woocommerce_variation_is_purchasable', array( '\Unax_Addons\Future_Products', 'is_purchasable' ), 10, 2 );
-add_filter( 'woocommerce_variation_is_visible', array( '\Unax_Addons\Future_Products', 'variation_is_visible' ), 10, 4 );
+// add_filter( 'the_permalink', array( '\Unax_Addons\Future_Products', 'fix_permalink' ), 10, 2 );
+// add_filter( 'woocommerce_is_purchasable', array( '\Unax_Addons\Future_Products', 'is_purchasable' ), 10, 2 );
+// add_filter( 'woocommerce_product_is_visible', array( '\Unax_Addons\Future_Products', 'product_is_visible' ), 10, 2 );
+// add_filter( 'woocommerce_variation_is_purchasable', array( '\Unax_Addons\Future_Products', 'is_purchasable' ), 10, 2 );
+// add_filter( 'woocommerce_variation_is_visible', array( '\Unax_Addons\Future_Products', 'variation_is_visible' ), 10, 4 );
 
 /*
  * Class Future_Products
@@ -63,21 +63,14 @@ class Future_Products {
 	 * @param WP_Query $query object.
 	 */
 	public static function show_future_products( $query ) {
-		if ( empty( $query->get( 'post_status' ) ) ) {
-			return;
-		}
-
 		// Check if the query is for products.
-		if ( ! in_array( $query->get( 'post_type' ), self::$post_types, true )
-			&& ! is_product_category()
-			&& ! is_post_type_archive( self::$post_types ) ) {
+		if ( is_admin() || ! $query->is_main_query() ) {
 			return;
 		}
 
-		// Set post status.
-		if ( 'future' === $query->get( 'post_status' ) ) {
-			$query->set( 'post_status', 'publish' );
-		}
+		$query->set( 'post_status', array( 'publish', 'future' ) );
+		$query->set( 'orderby', 'date' );
+		$query->set( 'order', 'ASC' );
 	}
 
 
